@@ -138,13 +138,14 @@ handler_data_abort:
 @ IRQ
 @ ------------------------------------------------------------------------------
 handler_irq:
-    stmfd   sp!, {r0-r12,lr}
+    stmfd   sp!, {r0-r12, lr}
 
-    mov     r0, #111
+    ldr     r2, =0x101f1000
+    ldr     r0, [r2]
     bl      print_int
 
-    ldmfd   sp!, {r0-r12,lr}
-    mov     pc, lr
+    ldmfd   sp!, {r0-r12, lr}
+    subs    pc, lr, #4
 
 @ ------------------------------------------------------------------------------
 @ FIQ
