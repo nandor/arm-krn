@@ -54,7 +54,7 @@ print_int:
 
   @ Write '-' if negative
   cmp     r2, #0
-  bgt     .no_sign
+  bge     .no_sign
   mov     r2, #45
   strb    r2, [r3], #1
 .no_sign:

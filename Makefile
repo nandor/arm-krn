@@ -3,8 +3,16 @@ CC=arm-none-eabi-gcc
 LD=arm-none-eabi-ld
 OC=arm-none-eabi-objcopy
 
-ASFLAGS=-march=armv5te
-CFLAGS= -mcpu=arm926ej-s -c -nostdlib -nostartfiles -ffreestanding
+ASFLAGS=-march=armv6zk\
+				-g\
+
+CFLAGS=-march=armv6zk\
+			 -mtune=arm1176jzf-s\
+			 -Ofast\
+			 -mfpu=vfp\
+			 -mfloat-abi=hard\
+			 -nostartfiles\
+			 -g
 LDFLAGS=
 
 OBJECTS=kernel.o\
