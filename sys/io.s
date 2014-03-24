@@ -1,3 +1,4 @@
+@ ------------------------------------------------------------------------------
 @ The MIT License (MIT)
 @
 @ Copyright (c) 2014 Nandor Licker
@@ -19,18 +20,25 @@
 @ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 @ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 @ THE SOFTWARE.
-
+@ ------------------------------------------------------------------------------
 .section .text
+.global print_int
+.global print_string
 
 .equ UART0_ADDR, 0x101f1000
 
 @ ------------------------------------------------------------------------------
 @ Prints r0 to UART0
 @ ------------------------------------------------------------------------------
-.global print_int
 print_int:
   stmfd   sp!, {r4-r6, lr}
   sub     r3, sp, #12
+
+  @ Clear buffer
+  mov     r2, #0
+  str     r2, [r3]
+  str     r2, [r3, #4]
+  str     r2, [r3, #8]
 
   @ r0 = abs(s0), r2 = r0
   movs    r2, r0
@@ -71,3 +79,17 @@ print_int:
   bne     .print_loop
 
   ldmfd   sp!, {r4-r6, pc}
+
+@ ------------------------------------------------------------------------------
+@ Prints a null-terminated string from r0 to UART0
+@ ------------------------------------------------------------------------------
+print_string:
+  ldr     r1, =UART0_ADDR
+
+.loop:
+  ldrb    r2, [r0], #1
+  strb    r2, [r1]
+  cmp     r2, #0
+  bne     .loop
+
+  mov     pc, lr

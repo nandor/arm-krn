@@ -4,6 +4,7 @@ LD=arm-none-eabi-ld
 OC=arm-none-eabi-objcopy
 
 ASFLAGS=-march=armv6zk\
+				-mfpu=neon\
 				-g\
 
 CFLAGS=-march=armv6zk\
@@ -16,7 +17,12 @@ CFLAGS=-march=armv6zk\
 LDFLAGS=
 
 OBJECTS=kernel.o\
-				stdio.o
+				sys/io.o\
+				sys/syscall.o\
+				sys/thread.o\
+				lib/math.o\
+				lib/rasterizer.o\
+				lib/test.o
 
 all: kernel.bin
 
@@ -35,7 +41,7 @@ kernel.elf: $(OBJECTS) kernel.ld
 clean:
 	rm -rf kernel.bin
 	rm -rf kernel.elf
-	rm -rf *.o
+	rm -rf -R *.o
 
 debug:
 	qemu-system-arm -M versatilepb -m 128M -nographic -s -S -kernel kernel.bin
