@@ -32,10 +32,6 @@ SECTIONS
   . = ALIGN(0x1000);
   _bss_end = .;
 
-  /* 32kb for system/user mode */
-  . = . + 0x80000;
-  stack_sys = .;
-
   /* 16kb for supervisor mode */
   . = . + 0x4000;
   stack_svc = .;
@@ -49,4 +45,8 @@ SECTIONS
   stack_irq = .;
   . = . + 0x800;
   stack_fiq = .;
+
+  /* 32kb for system/user mode */
+  . = . + 0x80000;
+  stack_sys = .;
 }

@@ -41,74 +41,122 @@
 @ Entry point of the kernel
 @ ------------------------------------------------------------------------------
 _kernel:
-    @ Disable interrupts
-    mrs     r0, cpsr
-    orr     r0, #0xA0
-    msr     cpsr, r0
+  @ Disable IRQ & FIQ
+  mrs     r0, cpsr
+  orr     r0, r0, #0xC0
+  msr     cpsr, r0
 
-    @ Relocate the interrupt vector table
-    mov     r0, #0x0
-    ldr     r1, =_handlers
-.reloc_loop:
-    ldr     r2, [r1], #4
-    str     r2, [r0], #4
-    cmp     r0, #64
-    bls     .reloc_loop
+  bl      setup_handlers
+  bl      setup_stacks
+  bl      setup_timer
+  bl      setup_uart
 
-    @ Setup stacks
-    mrs     r0, cpsr
-    ldr     sp, =stack_svc
+  @ Enable IRQ, FIQ and enter user mode
+  mrs     r0, cpsr
+  bic     r0, r0, #0xCF
+  orr     r0, r0, #10
+  msr     cpsr, r0
 
-    @ Setup FIQ stack
-    msr     cpsr, #0xD1
-    ldr     sp, =stack_fiq
+  @ Enter user mode & run threads
+  bl      entry
 
-    @ Setup IRQ stack
-    msr     cpsr, #0xD2
-    ldr     sp, =stack_irq
+  @ Loop forever
+  b       .
 
-    @ Setup UND stack
-    msr     cpsr,  #0xDB
-    ldr     sp, =stack_und
+@ ------------------------------------------------------------------------------
+@ Relocates interrupt handlers to 0x0
+@ ------------------------------------------------------------------------------
+setup_handlers:
+  mov     r1, #0x0
+  ldr     r2, =_handlers
 
-    @ Enable IRQ & Enter system mode
-    bic     r0, #0xC0
-    msr     cpsr, r0
+.loop:
+  ldr     r3, [r2], #4
+  str     r3, [r1], #4
+  cmp     r1, #64
+  bls     .loop
 
-    @ UART0 control
-    ldr     r0, =0x101f1038
-    mov     r1, #16
-    str     r1, [r0]
+  mov     pc, lr
 
-    @ TIMER0 control
-    ldr     r0, =0x101E2000
-    ldr     r1, =1000000
-    str     r1, [r0]
+@ ------------------------------------------------------------------------------
+@ Sets up statcks for all modes
+@ ------------------------------------------------------------------------------
+setup_stacks:
+  @ Abort mode
+  mrs     r0, cpsr
+  bic     r0, r0, #0x1F
 
-    ldr     r0, =0x101E2008
-    ldr     r1, =0xE2
-    str     r1, [r0]
+  @ IRQ mode
+  orr     r1, r0, #0x12
+  msr     cpsr, r1
+  ldr     sp, =stack_irq
 
-    @ Timer generates a FIQ
-    ldr     r0, =VIC_INTSELECT
-    ldr     r1, =0x0010
-    str     r1, [r0]
+  @ FIQ mode
+  orr     r1, r0, #0x11
+  msr     cpsr, r1
+  ldr     sp, =stack_fiq
 
-    @ Enable UART0 & TIMER0
-    ldr     r0, =VIC_INTENABLE
-    ldr     r1, =0x1010
-    str     r1, [r0]
+  @ UND mode
+  orr     r1, r0, #0x1B
+  msr     cpsr, r1
+  ldr     sp, =stack_und
 
-    @ Enter user mode
-    bic     r0, #0x1F
-    orr     r0, #0x10
-    msr     cpsr, r0
+  @ ABT mode
+  orr     r1, r0, #0x17
+  msr     cpsr, r1
+  ldr     sp, =stack_abt
 
-    @ Run threads
-    bl      entry
+  @ SVC mode
+  orr     r1, r0, #0x13
+  msr     cpsr, r1
+  ldr     sp, =stack_svc
 
-    @ Loop forever
-    b       .
+  mov     pc, lr
+
+@ ------------------------------------------------------------------------------
+@ Enables TIMER0
+@ ------------------------------------------------------------------------------
+setup_timer:
+  @ TIMER0 control
+  ldr     r0, =TIMER0
+  ldr     r1, =500000
+  str     r1, [r0]
+
+  @ One-shot, prescale, 32-bit, interrupt
+  ldr     r0, =TIMER0_CONTROL
+  ldr     r1, =0xE2
+  str     r1, [r0]
+
+  @ Set timer interrupt to FIQ
+  ldr     r0, =VIC_INTSELECT
+  ldr     r1, =0x0010
+  str     r1, [r0]
+  mov     pc, lr
+
+  @ Enable timer interrupt
+  ldr     r0, =VIC_INTENABLE
+  ldr     r1, [r0]
+  orr     r1, #0x0010
+  str     r1, [r0]
+
+  mov     pc, lr
+
+@ ------------------------------------------------------------------------------
+@ Enables UART0
+@ ------------------------------------------------------------------------------
+setup_uart:
+  @ Enable UART0
+  ldr     r0, =UART0_IMSC
+  mov     r1, #16
+  str     r1, [r0]
+
+  @ Enable UART0 interrupt
+  ldr     r0, =VIC_INTENABLE
+  ldr     r1, [r0]
+  orr     r1, #0x1000
+  str     r1, [r0]
+
+  mov     pc, lr
 
 @ ------------------------------------------------------------------------------
 @ Interrupts
@@ -122,14 +170,14 @@ _kernel:
 @ kernel does is to move the table to the correct location
 @ ------------------------------------------------------------------------------
 _handlers:
-    ldr     pc, _handler_reset
-    ldr     pc, _handler_undef
-    ldr     pc, _handler_swi
-    ldr     pc, _handler_prefetch_abort
-    ldr     pc, _handler_data_abort
-    b       .
-    ldr     pc, _handler_irq
-    ldr     pc, _handler_fiq
+  ldr     pc, _handler_reset
+  ldr     pc, _handler_undef
+  ldr     pc, _handler_swi
+  ldr     pc, _handler_prefetch_abort
+  ldr     pc, _handler_data_abort
+  b       .
+  ldr     pc, _handler_irq
+  ldr     pc, _handler_fiq
 
 _handler_reset:          .word handler_reset
 _handler_undef:          .word handler_undef
@@ -144,89 +192,112 @@ _handler_fiq:            .word handler_fiq
 @ Reset interrupt handler
 @ ------------------------------------------------------------------------------
 handler_reset:
-    b       .
+  b       .
 
 @ ------------------------------------------------------------------------------
 @ Undefined instruction interrupt
 @ ------------------------------------------------------------------------------
 handler_undef:
-    stmfd   sp!, {lr}
+  stmfd   sp!, {lr}
 
-    ldr     lr, =.end
-    mov     r0, pc
-    b       print_string
-    .ascii  "\n\nKERNEL PANIC: Undefined Instruction\n\n\0"
-    .align  4
+  ldr     lr, =.end
+  mov     r0, pc
+  b       print_string
+  .ascii  "\n\nKERNEL PANIC: Undefined Instruction\n\n\0"
+  .align  4
 .end:
-    b       .
+  b       .
 
 @ ------------------------------------------------------------------------------
 @ SWI handler
 @ ------------------------------------------------------------------------------
 handler_swi:
-    stmfd   sp!, {r4-r6, lr}
+  stmfd   sp!, {r4-r6, lr}
 
-    @ Get swi opcode
-    ldr     r5, [lr, #-4]
+  @ Get swi opcode
+  ldr     r5, [lr, #-4]
 
-    @ Get first argument
-    ldr     r4, =0x0000FFFF
-    and     r4, r5, lsr #8
+  @ Get first argument
+  ldr     r4, =0x0000FFFF
+  and     r4, r5, lsr #8
 
-    @ Syscall number
-    and     r5, #0xFF
+  @ Syscall number
+  and     r5, #0xFF
 
-    @ Jump to syscall
-    ldr     r6, =syscall
-    add     r6, r5, lsl #2
-    mov     lr, pc
-    ldr     pc, [r6]
+  @ Jump to syscall
+  ldr     r6, =syscall
+  add     r6, r5, lsl #2
+  mov     lr, pc
+  ldr     pc, [r6]
 
-    ldmfd   sp!, {r4-r6, pc}^
+  ldmfd   sp!, {r4-r6, pc}^
 
 @ ------------------------------------------------------------------------------
 @ Prefetch abort interrupt
 @ ------------------------------------------------------------------------------
 handler_prefetch_abort:
-    sub     lr, lr, #4
-    stmfd   sp!, {r0-r12, lr}
+  sub     lr, lr, #4
+  stmfd   sp!, {r0-r12, lr}
 
-    ldmfd   sp!, {r0-r12, pc}^
+  ldmfd   sp!, {r0-r12, pc}^
 
 @ ------------------------------------------------------------------------------
 @ Data abort interrupt
 @ ------------------------------------------------------------------------------
 handler_data_abort:
-    sub     lr, lr, #8
-    stmfd   sp!, {r0-r12, lr}
+  sub     lr, lr, #8
+  stmfd   sp!, {r0-r12, lr}
 
-    ldmfd   sp!, {r0-r12, pc}^
+  ldmfd   sp!, {r0-r12, pc}^
 
 @ ------------------------------------------------------------------------------
 @ IRQ
 @ ------------------------------------------------------------------------------
 handler_irq:
-    sub     lr, lr, #4
-    stmfd   sp!, {r0-r12, lr}
+  sub     lr, lr, #4
+  stmfd   sp!, {r0-r12, lr}
 
-    ldr     r2, =UART0_DR
-    ldr     r0, [r2]
-    bl      print_int
+  ldr     r2, =UART0_DR
+  ldr     r0, [r2]
+  bl      print_int
 
-    ldmfd   sp!, {r0-r12, pc}^
+  ldmfd   sp!, {r0-r12, pc}^
 
 @ ------------------------------------------------------------------------------
 @ FIQ
 @ ------------------------------------------------------------------------------
 handler_fiq:
-    sub     lr, lr, #4
-    stmfd   sp!, {r0-r7, lr}
+  sub     lr, lr, #4
+  stmfd   sp!, {r0-r7, lr}
 
-    ldr     r0, =TIMER0_INTCLR
-    mov     r1, #1
-    str     r1, [r0]
+  @ Clear timer interrupt
+  ldr     r0, =TIMER0_INTCLR
+  mov     r1, #1
+  str     r1, [r0]
 
-    @ldr     r0, =fiq
-    @bl      print_string
+  @ r0 = current thread, r3 = next thread
+  ldr     r1, =thread_id
+  ldr     r0, [r1]
+  ldr     r2, =thread_count
+  ldr     r2, [r2]
+  add     r3, r0, #1
+  cmps    r3, r2
+  movhs   r3, #0
+  str     r3, [r1]
 
-    ldmfd   sp!, {r0-r7, pc}^
+  @ Switch context of r2 with r3
+  cmp     r0, r3
+  beq     .noswitch
+
+  ldr     r0, =fiq
+  bl      print_string
+
+.noswitch:
+
+  ldmfd   sp!, {r0-r7, pc}^
+
+@ ------------------------------------------------------------------------------
+@ Read-only data
+@ ------------------------------------------------------------------------------
+.section .rodata
+  fiq: .ascii "FIQ\n\0"
