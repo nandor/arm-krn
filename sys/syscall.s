@@ -40,59 +40,37 @@
 @   need to preserve r7-r12
 @ ------------------------------------------------------------------------------
 syscall:
-  .word sys_fork
-  .word sys_gettid
-  .word sys_yield
-  .word sys_print
-  .word sys_read
+  .word sys_spawn     @ 0x00
+  .word sys_gettid    @ 0x01
+  .word sys_yield     @ 0x02
+  .word sys_panic     @ 0x03
   .rept (syscall + 1024 - .) / 4
     .word 0x0
   .endr
 
 @ ------------------------------------------------------------------------------
-@ swi 0x00
+@ swi 0x03 - Kernel panic
+@ Arguments:
+@   none
+@ Return value:
+@   none
 @ ------------------------------------------------------------------------------
-sys_fork:
-  stmfd   sp!, {lr}
+sys_panic:
+  @ Disable interrupts
+  mrs     r0, cpsr
+  orr     r0, r0, #0xC0
+  msr     cpsr, r0
 
-  @ r0 = thread id
-  ldr     r1, =thread_count
-  ldr     r0, [r1]
-  add     r2, r0, #1
-  str     r2, [r1]
+  @ Print panic message
+  ldr     r0, =.msg_beg
+  ldr     lr, =.msg_end
+  b       prints
+.msg_beg:
+  .ascii "\n\nKERNEL PANIC: Softare interrupt\n\n\n\0"
+  .align 4
+.msg_end:
 
-  @ Duplicate stacks & registers
-  ldr     r1, =thread_stack + 7 * 4
-  ldr     r3, =14 * 4
-
-  ldmfd   sp!, {pc}
-
-@ ------------------------------------------------------------------------------
-@ swi 0x01
-@ ------------------------------------------------------------------------------
-sys_gettid:
-  stmfd   sp!, {lr}
-  ldr     r0, =thread_id
-  ldr     r0, [r0]
-  ldmfd   sp!, {pc}
-
-@ ------------------------------------------------------------------------------
-@ swi 0x02
-@ ------------------------------------------------------------------------------
-sys_yield:
-  stmfd   sp!, {lr}
-  ldmfd   sp!, {pc}
-
-@ ------------------------------------------------------------------------------
-@ swi 0x03
-@ ------------------------------------------------------------------------------
-sys_print:
-  stmfd   sp!, {lr}
-  ldmfd   sp!, {pc}
-
-@ ------------------------------------------------------------------------------
-@ swi 0x04
-@ ------------------------------------------------------------------------------
-sys_read:
-  stmfd   sp!, {lr}
-  ldmfd   sp!, {pc}
+  @ Sleep & hang
+.hang:
+  wfi
+  b     .hang

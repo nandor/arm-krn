@@ -22,15 +22,21 @@
 @ THE SOFTWARE.
 @ ------------------------------------------------------------------------------
 .section .text
-.global print_int
-.global print_string
+.global printi
+.global printh
+.global prints
+.global printf
 
 .equ UART0_ADDR, 0x101f1000
 
 @ ------------------------------------------------------------------------------
-@ Prints r0 to UART0
+@ Prints r0 in decimal to UART0
+@ Arguments:
+@   r0 - number to print
+@ Return value:
+@   none
 @ ------------------------------------------------------------------------------
-print_int:
+printi:
   stmfd   sp!, {r4-r6, lr}
   sub     r3, sp, #24
 
@@ -81,9 +87,23 @@ print_int:
   ldmfd   sp!, {r4-r6, pc}
 
 @ ------------------------------------------------------------------------------
-@ Prints a null-terminated string from r0 to UART0
+@ Prints r0 in hexadecimal to UART0
+@ Arguments:
+@   r0 - value to be printed
+@ Return value:
+@   none
 @ ------------------------------------------------------------------------------
-print_string:
+printh:
+  mov pc, lr
+
+@ ------------------------------------------------------------------------------
+@ Prints a null-terminated string from r0 to UART0
+@ Arguments:
+@   r0 - address of the null-terminated string
+@ Return value:
+@   none
+@ ------------------------------------------------------------------------------
+prints:
   ldr     r1, =UART0_ADDR
 
 .loop:
@@ -93,3 +113,15 @@ print_string:
   bne     .loop
 
   mov     pc, lr
+
+@ ------------------------------------------------------------------------------
+@ Prints a formatted string to UART0
+@ Arguments:
+@   r0 - format string
+@ Return value:
+@   none
+@ Remarks:
+@   parameters are passed on the stack
+@ ------------------------------------------------------------------------------
+printf:
+  mov pc, lr

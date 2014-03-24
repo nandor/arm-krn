@@ -20,9 +20,6 @@ OBJECTS=kernel.o\
 				sys/io.o\
 				sys/syscall.o\
 				sys/thread.o\
-				lib/math.o\
-				lib/rasterizer.o\
-				lib/test.o
 
 all: kernel.bin
 

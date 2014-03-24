@@ -46,6 +46,7 @@ _kernel:
   orr     r0, r0, #0xC0
   msr     cpsr, r0
 
+  @ Initialise subsystems
   bl      setup_handlers
   bl      setup_stacks
   bl      setup_timer
@@ -54,17 +55,27 @@ _kernel:
   @ Enable IRQ, FIQ and enter user mode
   mrs     r0, cpsr
   bic     r0, r0, #0xCF
-  orr     r0, r0, #10
+  orr     r0, r0, #0x10
   msr     cpsr, r0
+  ldr     sp, =stack_sys
 
-  @ Enter user mode & run threads
-  bl      entry
+  @ Spawn 3 threads
+  ldr     r0, =thread_test
+  swi     #0x00
+  swi     #0x00
+  swi     #0x00
 
-  @ Loop forever
-  b       .
+  @ Loop forever & yield
+.hang:
+  wfi
+  b       .hang
 
 @ ------------------------------------------------------------------------------
 @ Relocates interrupt handlers to 0x0
+@ Arguments:
+@   none
+@ Return value:
+@   none
 @ ------------------------------------------------------------------------------
 setup_handlers:
   mov     r1, #0x0
@@ -80,9 +91,12 @@ setup_handlers:
 
 @ ------------------------------------------------------------------------------
 @ Sets up statcks for all modes
+@ Arguments:
+@   none
+@ Return value:
+@   none
 @ ------------------------------------------------------------------------------
 setup_stacks:
-  @ Abort mode
   mrs     r0, cpsr
   bic     r0, r0, #0x1F
 
@@ -115,6 +129,10 @@ setup_stacks:
 
 @ ------------------------------------------------------------------------------
 @ Enables TIMER0
+@ Arguments:
+@   none
+@ Return value:
+@   none
 @ ------------------------------------------------------------------------------
 setup_timer:
   @ TIMER0 control
@@ -143,6 +161,10 @@ setup_timer:
 
 @ ------------------------------------------------------------------------------
 @ Enables UART0
+@ Arguments:
+@   none
+@ Return value:
+@   none
 @ ------------------------------------------------------------------------------
 setup_uart:
   @ Enable UART0
@@ -200,12 +222,13 @@ handler_reset:
 handler_undef:
   stmfd   sp!, {lr}
 
-  ldr     lr, =.end
-  mov     r0, pc
-  b       print_string
-  .ascii  "\n\nKERNEL PANIC: Undefined Instruction\n\n\0"
-  .align  4
-.end:
+  ldr     r0, =.msg_beg
+  ldr     lr, =.msg_end
+  b       prints
+.msg_beg:
+  .ascii "\n\nKERNEL PANIC: Undefined Instruction\n\n\0"
+  .align 4
+.msg_end:
   b       .
 
 @ ------------------------------------------------------------------------------
@@ -238,7 +261,7 @@ handler_swi:
 handler_prefetch_abort:
   sub     lr, lr, #4
   stmfd   sp!, {r0-r12, lr}
-
+  @ Do nothing
   ldmfd   sp!, {r0-r12, pc}^
 
 @ ------------------------------------------------------------------------------
@@ -247,7 +270,7 @@ handler_prefetch_abort:
 handler_data_abort:
   sub     lr, lr, #8
   stmfd   sp!, {r0-r12, lr}
-
+  @ Do nothing
   ldmfd   sp!, {r0-r12, pc}^
 
 @ ------------------------------------------------------------------------------
@@ -257,9 +280,10 @@ handler_irq:
   sub     lr, lr, #4
   stmfd   sp!, {r0-r12, lr}
 
+  @ Print incoming character
   ldr     r2, =UART0_DR
   ldr     r0, [r2]
-  bl      print_int
+  bl      printi
 
   ldmfd   sp!, {r0-r12, pc}^
 
@@ -270,34 +294,11 @@ handler_fiq:
   sub     lr, lr, #4
   stmfd   sp!, {r0-r7, lr}
 
-  @ Clear timer interrupt
+  @ Clear interrupt flag
   ldr     r0, =TIMER0_INTCLR
   mov     r1, #1
   str     r1, [r0]
 
-  @ r0 = current thread, r3 = next thread
-  ldr     r1, =thread_id
-  ldr     r0, [r1]
-  ldr     r2, =thread_count
-  ldr     r2, [r2]
-  add     r3, r0, #1
-  cmps    r3, r2
-  movhs   r3, #0
-  str     r3, [r1]
-
-  @ Switch context of r2 with r3
-  cmp     r0, r3
-  beq     .noswitch
-
-  ldr     r0, =fiq
-  bl      print_string
-
-.noswitch:
+  @ Do a context switch
 
   ldmfd   sp!, {r0-r7, pc}^
-
-@ ------------------------------------------------------------------------------
-@ Read-only data
-@ ------------------------------------------------------------------------------
-.section .rodata
-  fiq: .ascii "FIQ\n\0"

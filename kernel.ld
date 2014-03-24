@@ -46,7 +46,7 @@ SECTIONS
   . = . + 0x800;
   stack_fiq = .;
 
-  /* 32kb for system/user mode */
-  . = . + 0x80000;
+  /* 32kb for every thread, up to 128 */
+  . = . + 0x4000000;
   stack_sys = .;
 }

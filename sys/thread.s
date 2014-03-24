@@ -22,56 +22,76 @@
 @ THE SOFTWARE.
 @ ------------------------------------------------------------------------------
 .section .text
-.global thread_id
-.global thread_count
-.global thread_stack
-.global entry
+.global sys_spawn
+.global sys_gettid
+.global sys_yield
+.global thread_test
 
 @ ------------------------------------------------------------------------------
-@ Saves the context of a thread
+@ swi 0x00 - Spawns a new thread
+@ Arguments:
+@   r0 - entry point
+@ Return value:
+@   none
 @ ------------------------------------------------------------------------------
+sys_spawn:
+  stmfd   sp!, {r0, lr}
+  ldmfd   sp!, {r0, pc}
 
 @ ------------------------------------------------------------------------------
-@ Restores the context of a thread
+@ swi 0x01 - Returns the thread id of the current thread
+@ Arguments:
+@   none
+@ Return value:
+@   r0 - numeric thread id
 @ ------------------------------------------------------------------------------
+sys_gettid:
+  stmfd   sp!, {lr}
+  ldmfd   sp!, {pc}
+
+@ ------------------------------------------------------------------------------
+@ swi 0x02 - Transfers control to other threads
+@ Arguments:
+@   none
+@ Return value:
+@   none
+@ ------------------------------------------------------------------------------
+sys_yield:
+  stmfd   sp!, {lr}
+  ldmfd   sp!, {pc}
 
 @ ------------------------------------------------------------------------------
 @ Entry point of the example thread
 @ ------------------------------------------------------------------------------
-entry:
-    stmfd sp!, {lr}
-    swi   0x1       @ get thread id
-    mov   r4, r0
+thread_test:
+  stmfd sp!, {lr}
 
-    cmp   r0, #0    @ fork another thread
-    swieq 0x0
+  @ get thread id
+  swi   0x1
+  mov   r4, r0
 
 .loop:
-    mov   r0, r4
-    bl    print_int
-
-    ldr   r0, =message
-    bl    print_string
-    ldr   r1, =50000000
+  mov   r0, r4
+  bl    printi
+  ldr   r1, =50000000
 .wait:
-    subs  r1, #1
-    bne   .wait
+  subs  r1, #1
+  bne   .wait
 
-    b     .loop
+  b     .loop
 
-    ldmfd sp!, {pc}
-
-.section .rodata
-  message: .ascii " tid\n\0"
+  ldmfd sp!, {pc}
 
 @ ------------------------------------------------------------------------------
 @ Thread contexts
 @ ------------------------------------------------------------------------------
 .section .data
-thread_id: .word 0
-thread_count: .word 1
-
-thread_stack:
-.rept 100
-  .space (14 * 4), 0x0
-.endr
+thread_id:
+  .word 0
+thread_count:
+  .word 1
+thread_meta:
+  .rept 128
+    .space 16 * 4, 0x0             @ r0-r12, sp, lr, pc
+    .space 16 * 4, 0x0             @ reserved
+  .endr
