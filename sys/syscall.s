@@ -37,7 +37,8 @@
 @   r6 - procedure address
 @ Register saving:
 @   r4-r6 are preserved by the wrapper, so individual syscall only
-@   need to preserve r7-r12
+@   need to preserve r7-r12. Unless stated otherwise, r0-r4 are
+@   overwritten by syscalls
 @ ------------------------------------------------------------------------------
 syscall:
   .word sys_spawn     @ 0x00
@@ -72,5 +73,4 @@ sys_panic:
 
   @ Sleep & hang
 .hang:
-  wfi
   b     .hang

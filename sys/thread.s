@@ -25,7 +25,9 @@
 .global sys_spawn
 .global sys_gettid
 .global sys_yield
-.global thread_test
+.global thread_id
+.global thread_count
+.global thread_meta
 
 @ ------------------------------------------------------------------------------
 @ swi 0x00 - Spawns a new thread
@@ -33,10 +35,37 @@
 @   r0 - entry point
 @ Return value:
 @   none
+@ Remarks:
+@   r0 is preserved so same thread can be spawned multiple times without
+@   reloading entry address to r0
 @ ------------------------------------------------------------------------------
 sys_spawn:
-  stmfd   sp!, {r0, lr}
-  ldmfd   sp!, {r0, pc}
+  stmfd   sp!, {lr}
+
+  @ Get thread id & increment thread count
+  ldr     r1, =thread_count
+  ldr     r2, [r1]
+  add     r2, #1
+  str     r2, [r1]
+
+  @ Get address of entry in meta array
+  ldr     r1, =thread_meta
+  add     r3, r1, r2, lsl #7
+
+  @ Set pc to entry
+  str     r0, [r3, #(15 * 4)]
+
+  @ Save status register
+  mrs     r1, cpsr
+  bic     r1, #0xF
+  str     r1, [r3, #(16 * 4)]
+
+  @ Assign stack space
+  ldr     r1, =stack_sys
+  sub     r4, r1, r2, lsl #15
+  str     r4, [r3, #(13 * 4)]
+
+  ldmfd   sp!, {pc}
 
 @ ------------------------------------------------------------------------------
 @ swi 0x01 - Returns the thread id of the current thread
@@ -47,6 +76,8 @@ sys_spawn:
 @ ------------------------------------------------------------------------------
 sys_gettid:
   stmfd   sp!, {lr}
+  ldr     r0, =thread_id
+  ldr     r0, [r0]
   ldmfd   sp!, {pc}
 
 @ ------------------------------------------------------------------------------
@@ -63,6 +94,7 @@ sys_yield:
 @ ------------------------------------------------------------------------------
 @ Entry point of the example thread
 @ ------------------------------------------------------------------------------
+.global thread_test
 thread_test:
   stmfd sp!, {lr}
 
@@ -89,9 +121,10 @@ thread_test:
 thread_id:
   .word 0
 thread_count:
-  .word 1
+  .word 0
 thread_meta:
   .rept 128
     .space 16 * 4, 0x0             @ r0-r12, sp, lr, pc
-    .space 16 * 4, 0x0             @ reserved
+    .word  0x0                     @ cpsr
+    .space 15 * 4, 0x0             @ reserved
   .endr

@@ -63,11 +63,9 @@ _kernel:
   ldr     r0, =thread_test
   swi     #0x00
   swi     #0x00
-  swi     #0x00
 
   @ Loop forever & yield
 .hang:
-  wfi
   b       .hang
 
 @ ------------------------------------------------------------------------------
@@ -299,6 +297,20 @@ handler_fiq:
   mov     r1, #1
   str     r1, [r0]
 
-  @ Do a context switch
+  @ r1 = old tid, r2 = new tid
+  ldr     r0, =thread_id
+  ldr     r1, [r0]
+  ldr     r3, =thread_count
+  ldr     r3, [r3]
+  add     r2, r1, #1
+  cmp     r2, r3
+  movhi   r2, #0
+  str     r2, [r0]
 
-  ldmfd   sp!, {r0-r7, pc}^
+  @ Get saved context
+  ldr     r1, =thread_meta
+  add     r3, r1, r2, lsl #7
+
+  ldr     r0, [r3, #(16 * 4)]
+  msr     spsr, r0
+  ldm     r3, {r0-r15}^

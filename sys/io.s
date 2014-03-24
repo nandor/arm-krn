@@ -84,6 +84,10 @@ printi:
   cmp     r0, #0
   bne     .print_loop
 
+  @ Write a newline
+  mov     r0, #0xA
+  strb    r0, [r2]
+
   ldmfd   sp!, {r4-r6, pc}
 
 @ ------------------------------------------------------------------------------
