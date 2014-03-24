@@ -135,7 +135,7 @@ setup_stacks:
 setup_timer:
   @ TIMER0 control
   ldr     r0, =TIMER0
-  ldr     r1, =500000
+  ldr     r1, =500
   str     r1, [r0]
 
   @ One-shot, prescale, 32-bit, interrupt
@@ -289,28 +289,33 @@ handler_irq:
 @ FIQ
 @ ------------------------------------------------------------------------------
 handler_fiq:
-  sub     lr, lr, #4
-  stmfd   sp!, {r0-r7, lr}
-
   @ Clear interrupt flag
-  ldr     r0, =TIMER0_INTCLR
-  mov     r1, #1
-  str     r1, [r0]
+  ldr     r8, =TIMER0_INTCLR
+  mov     r9, #1
+  str     r9, [r8]
 
-  @ r1 = old tid, r2 = new tid
-  ldr     r0, =thread_id
-  ldr     r1, [r0]
-  ldr     r3, =thread_count
-  ldr     r3, [r3]
-  add     r2, r1, #1
-  cmp     r2, r3
-  movhi   r2, #0
-  str     r2, [r0]
+  @ r9 = old tid, r10 = new tid
+  ldr     r8, =thread_id
+  ldr     r9, [r8]
+  ldr     r11, =thread_count
+  ldr     r11, [r11]
+  add     r10, r9, #1
+  cmp     r10, r11
+  movhi   r10, #0
+  str     r10, [r8]
 
-  @ Get saved context
-  ldr     r1, =thread_meta
-  add     r3, r1, r2, lsl #7
+  ldr     r8, =thread_meta
 
-  ldr     r0, [r3, #(16 * 4)]
-  msr     spsr, r0
-  ldm     r3, {r0-r15}^
+  @ Save old context
+  add     r12, r8, r9, lsl #7
+  stm     r12, {r0-r14}^
+  sub     lr, #4
+  str     lr, [r12, #(15 * 4)]
+  mrs     r11, spsr
+  str     r11, [r12, #(16 * 4)]
+
+  @ Restore context
+  add     r12, r8, r10, lsl #7
+  ldr     r10, [r12, #(16 * 4)]
+  msr     spsr, r10
+  ldm     r12, {r0-r15}^

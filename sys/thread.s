@@ -101,15 +101,19 @@ thread_test:
   @ get thread id
   swi   0x1
   mov   r4, r0
+  ldr   r5, =1000
+  mul   r4, r5
+  mov   r6, #0
 
 .loop:
   mov   r0, r4
   bl    printi
-  ldr   r1, =50000000
+  ldr   r1, =1000
 .wait:
   subs  r1, #1
   bne   .wait
 
+  add   r4, #1
   b     .loop
 
   ldmfd sp!, {pc}
