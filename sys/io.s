@@ -27,13 +27,13 @@
 .global prints
 .global printf
 
-.equ UART0_ADDR, 0x101f1000
-
 @ ------------------------------------------------------------------------------
 @ Prints r0 in decimal to UART0
 @ Arguments:
 @   r0 - number to print
 @ Return value:
+@   none
+@ Clobbers:
 @   none
 @ ------------------------------------------------------------------------------
 printi:
@@ -77,16 +77,15 @@ printi:
 
   @ Write inverted buffer to UART0
   sub     r3, #1
-  ldr     r2, =UART0_ADDR
 .print_loop:
   ldrb    r0, [r3], #-1
-  strb    r0, [r2]
+  bl      uart_putc
   cmp     r0, #0
   bne     .print_loop
 
   @ Write a newline
   mov     r0, #0xA
-  strb    r0, [r2]
+  bl      uart_putc
 
   ldmfd   sp!, {r4-r6, pc}
 
@@ -108,7 +107,7 @@ printh:
 @   none
 @ ------------------------------------------------------------------------------
 prints:
-  ldr     r1, =UART0_ADDR
+  ldr     r1, =0x202010002
 
 .loop:
   ldrb    r2, [r0], #1

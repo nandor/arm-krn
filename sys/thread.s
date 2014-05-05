@@ -101,14 +101,14 @@ thread_test:
   @ get thread id
   swi   0x1
   mov   r4, r0
-  ldr   r5, =1000
+  ldr   r5, =10000000
   mul   r4, r5
   mov   r6, #0
 
 .loop:
   mov   r0, r4
   bl    printi
-  ldr   r1, =1000
+  ldr   r1, =5000000
 .wait:
   subs  r1, #1
   bne   .wait

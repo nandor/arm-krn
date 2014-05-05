@@ -14,12 +14,16 @@ CFLAGS=-march=armv6zk\
 			 -mfloat-abi=hard\
 			 -nostartfiles\
 			 -g
+
 LDFLAGS=
 
 OBJECTS=kernel.o\
 				sys/io.o\
 				sys/syscall.o\
 				sys/thread.o\
+				sys/uart.o\
+				sys/timer.o\
+				sys/irq.o
 
 all: kernel.bin
 
@@ -41,7 +45,11 @@ clean:
 	rm -rf -R *.o
 
 debug:
-	qemu-system-arm -M versatilepb -m 128M -nographic -s -S -kernel kernel.bin
+	qemu-system-arm -M raspi -m 128M -cpu arm1176 -nographic -kernel kernel.bin -s -S
 
 run:
-	qemu-system-arm -M versatilepb -m 128M -nographic -kernel kernel.bin
+	qemu-system-arm -M raspi\
+									-m 128M\
+									-cpu arm1176\
+									-nographic\
+									-kernel kernel.bin

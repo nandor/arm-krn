@@ -1,8 +1,8 @@
-ENTRY(_kernel)
+ENTRY(kernel_entry)
 SECTIONS
 {
   . = 0x10000;
-  _kernel = .;
+  kernel_entry = .;
 
   .text :
   {
@@ -32,8 +32,8 @@ SECTIONS
   . = ALIGN(0x1000);
   _bss_end = .;
 
-  /* 16kb for supervisor mode */
-  . = . + 0x4000;
+  /* 4kb for supervisor mode */
+  . = . + 0x1000;
   stack_svc = .;
 
   /* 2kb for other modes */
