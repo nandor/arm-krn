@@ -224,6 +224,24 @@ handler_irq:
   sub     lr, lr, #4
   stmfd   sp!, {r0-r12, lr}
 
+  @ Clear interrupt flag
+  ldr     r8, =TIMER_CLI
+  mov     r9, #0
+  str     r9, [r8]
+
+  mov     r0, #1
+  bl      printi
+
+  ldmfd   sp!, {r0-r12, pc}^
+
+
+@ ------------------------------------------------------------------------------
+@ FIQ
+@ ------------------------------------------------------------------------------
+handler_fiq:
+  sub     lr, #4
+  stmfd   sp!, {r0-r6, lr}
+
   mov     r0, #2
   bl      printi
 
@@ -236,23 +254,5 @@ handler_irq:
   ldr     r1, =STIMER_CS
   ldr     r0, =0x08
   str     r0, [r1]
-
-  ldmfd   sp!, {r0-r12, pc}^
-
-
-@ ------------------------------------------------------------------------------
-@ FIQ
-@ ------------------------------------------------------------------------------
-handler_fiq:
-  sub     lr, #4
-  stmfd   sp!, {r0-r6, lr}
-
-  @ Clear interrupt flag
-  ldr     r8, =TIMER_CLI
-  mov     r9, #0
-  str     r9, [r8]
-
-  mov     r0, #1
-  bl      printi
 
   ldmfd   sp!, {r0-r6, pc}^

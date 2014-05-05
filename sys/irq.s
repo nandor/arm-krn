@@ -38,7 +38,7 @@
 @ ------------------------------------------------------------------------------
 setup_irq:
   @ Set ARM timer to generate a FIQ
-  mov     r0, #0xC0
+  mov     r0, #0x83
   ldr     r1, =IRQ_FIQ
   str     r0, [r1]
 
